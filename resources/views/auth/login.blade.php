@@ -2,7 +2,7 @@
 @section('title', 'Sign In -' . config('app.short_name'))
 
 @section('login')
-    <div class="flex flex-col items-center justify-center flex-grow bg-[#418792] py-8">
+    <div class="flex flex-col items-center justify-center flex-grow bg-[#418792] py-8 ">
         <div class="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 min-h-[600px] animate-fadeIn">
 
             <!-- Left side: White Login Card with right shadow -->
@@ -12,10 +12,8 @@
                     <h2 class="text-center text-2xl font-bold text-gray-800">SIGN IN</h2>
                     <p class="text-center text-sm text-gray-500 mb-8">Access your {{(config('app.name'))}} account</p>
 
-                    <form action="#" method="POST" id="loginForm" class="space-y-5">
-                        @csrf
-
-
+                    <form   id="loginForm" class="space-y-5">
+                        
 
                         <!-- Username -->
                         <div>
@@ -81,54 +79,77 @@
 @endsection
 
 @section('page_level_scripts')
+
     <script>
         // Toggle password visibility
-        document.getElementById('togglePassword').addEventListener('click', function () {
-            const passwordField = document.getElementById('password');
-            const eyeIcon = document.getElementById('eyeIcon');
+        $('#togglePassword').on('click', function () {
+            const passwordField = $('#password');
+            const eyeIcon = $('#eyeIcon');
 
-            if (passwordField.type === 'password') {
-                passwordField.type = 'text';
-                eyeIcon.innerHTML = `
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.974 9.974 0 012.25-3.955M9.88 9.88a3 3 0 104.24 4.24m1.768-5.009A9.953 9.953 0 0112 5c-4.477 0-8.268 2.943-9.542 7a9.978 9.978 0 001.684 3.316M15 12a3 3 0 01-6 0 3 3 0 016 0z" />
-                `;
+            if (passwordField.attr('type') === 'password') {
+                passwordField.attr('type', 'text');
+                eyeIcon.html(`
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.974 9.974 0 012.25-3.955M9.88 9.88a3 3 0 104.24 4.24m1.768-5.009A9.953 9.953 0 0112 5c-4.477 0-8.268 2.943-9.542 7a9.978 9.978 0 001.684 3.316M15 12a3 3 0 01-6 0 3 3 0 016 0z" />
+                    `);
             } else {
-                passwordField.type = 'password';
-                eyeIcon.innerHTML = `
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                `;
+                passwordField.attr('type', 'password');
+                eyeIcon.html(`
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    `);
             }
         });
 
-        // Form validation
-        document.getElementById('loginForm').addEventListener('submit', function (e) {
+        // jQuery AJAX Form Submit
+        $('#loginForm').on('submit', function (e) {
             e.preventDefault();
 
-            document.querySelectorAll('#loginForm p').forEach(el => el.classList.add('hidden'));
+            // Clear previous errors
+            $('#usernameError').addClass('hidden').text('');
+            $('#passwordError').addClass('hidden').text('');
 
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value.trim();
-            let valid = true;
+            let formData = {
+                _token: $('input[name="_token"]').val(),
+                username: $('#username').val().trim(),
+                password: $('#password').val().trim(),
+            };
 
-            if (!username) {
-                document.getElementById('usernameError').textContent = "Username is required";
-                document.getElementById('usernameError').classList.remove('hidden');
-                valid = false;
-            }
-
-            if (!password) {
-                document.getElementById('passwordError').textContent = "Password is required";
-                document.getElementById('passwordError').classList.remove('hidden');
-                valid = false;
-            }
-
-            if (!valid) return;
-
-            console.log('Logging in with:', { username, password });
-            alert('Login successful! Redirecting...');
-            // window.location.href = '/dashboard';
+            $.ajax({
+                url: apiURL + "/login",
+                method: "POST",
+                data: formData,
+                beforeSend: function () {
+                    // Disable button while loading
+                    $('.btn-login-gradient').prop('disabled', true).text('Logging in...');
+                },
+                success: function (response) {
+                    // Example: expecting JSON { success: true, redirect: "/dashboard" }
+                    if (response.success) {
+                        // window.location.href = response.redirect;
+                        alert('Login successful! Redirecting...');
+                    } else {
+                        alert(response.message || 'Invalid credentials');
+                    }
+                },
+                error: function (xhr) {
+                    if (xhr.status === 422) {
+                        let errors = xhr.responseJSON.errors;
+                        if (errors.username) {
+                            $('#usernameError').removeClass('hidden').text(errors.username[0]);
+                        }
+                        if (errors.password) {
+                            $('#passwordError').removeClass('hidden').text(errors.password[0]);
+                        }
+                    } else {
+                        alert('Something went wrong. Please try again.');
+                    }
+                },
+                complete: function () {
+                    // Enable button again
+                    $('.btn-login-gradient').prop('disabled', false).text('Login');
+                }
+            });
         });
     </script>
 
